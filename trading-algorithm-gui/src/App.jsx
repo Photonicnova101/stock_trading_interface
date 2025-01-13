@@ -6,7 +6,9 @@ const App = () => {
   const [stockData, setStockData] = useState(null);    // To store fetched stock data
   const [error, setError] = useState("");              // Error messages
   const [isLoading, setIsLoading] = useState(false);   // Loading state
-
+  const [algorithmResults, setAlgorithmResults] = useState(null);
+  
+  
   // Function to handle input change
   const handleInputChange = (e) => {
     setStockKeyword(e.target.value.trim().toUpperCase()); // Convert to uppercase for standardization
@@ -57,12 +59,34 @@ const App = () => {
     }
   };
 
+  //Getting algo results
+  const fetchAlgorithmResults = async () => {
+    try {
+      // Clear previous error messages
+      setError("");
+
+      // Make an API call to the FastAPI backend
+      const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm", {
+        stock_symbol: stockKeyword, // Pass the stock symbol as JSON in the request body
+      });
+
+      // Save the results returned by the backend
+      setAlgorithmResults(response.data.results);
+    } catch (err) {
+      // If the request fails, display an error message
+      setError(err.response?.data?.detail || "An error occurred");
+    }
+  };
+
+
+
   // Form submission handler
   const handleSubmit = (e) => {
     e.preventDefault(); // Prevent page reload
     fetchStockData(stockKeyword); // Fetch stock data using the keyword
+    fetchAlgorithmResults(stockKeyword)
   };
-
+  
   return (
     <div style={{ padding: "20px" }}>
       <h1>Stock Data Fetcher</h1>
@@ -87,6 +111,17 @@ const App = () => {
         <div>
           <h2>Stock Data</h2>
           <pre>{JSON.stringify(stockData, null, 2)}</pre>
+          <h3>Results of trading strategy</h3>
+          {/* Display results */}
+      {algorithmResults && (
+        <div>
+          <h2>Results:</h2>
+          <pre>{JSON.stringify(algorithmResults, null, 2)}</pre>
+        </div>
+      )}
+
+      {/* Display error message */}
+      {error && <div style={{ color: "red" }}>Error: {error}</div>}
         </div>
       )}
     </div>
