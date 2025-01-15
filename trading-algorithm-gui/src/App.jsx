@@ -66,12 +66,12 @@ const App = () => {
       setError("");
 
       // Make an API call to the FastAPI backend
-      const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm", {
-        stock_symbol: stockKeyword, // Pass the stock symbol as JSON in the request body
+      const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm/", {
+        json: stockData, // Pass the stock symbol as JSON in the request body
       });
 
       // Save the results returned by the backend
-      setAlgorithmResults(response.data.results);
+      setAlgorithmResults(response.json());
     } catch (err) {
       // If the request fails, display an error message
       setError(err.response?.data?.detail || "An error occurred");

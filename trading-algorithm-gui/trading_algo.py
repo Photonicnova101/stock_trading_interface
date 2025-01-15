@@ -126,13 +126,18 @@ def run_trading_algorithm(json):
     #max_trade_duration = max([r["Max. Trade Duration"] for r in results])
     #avg_trade_duration = sum([r["Avg. Trade Duration"] for r in results]) / len(results)
 
-    print(f"Aggregated Returns: {agg_returns:.2f}%")
-    print(f"Number of Trades: {num_trades}")
-    print(f"Maximum Drawdown: {max_drawdown:.2f}%")
-    print(f"Average Drawdown: {avg_drawdown:.2f}%")
-    print(f"Win Rate: {win_rate:.2f}%")
-    print(f"Best Trade: {best_trade:.2f}%")
-    print(f"Worst Trade: {worst_trade:.2f}%")
-    print(f"Average Trade: {avg_trade:.2f}%")
     #print(f"Maximum Trade Duration: {max_trade_duration} days")
     #print(f"Average Trade Duration: {avg_trade_duration:.2f} days")
+    results = {
+        "Aggregated Returns": f"{agg_returns:.2f}%",
+        "Number of Trades": num_trades,
+        "Maximum Drawdown": f"{max_drawdown:.2f}%",
+        "Average Drawdown": f"{avg_drawdown:.2f}%",
+        "Win Rate": f"{win_rate:.2f}%",
+        "Best Trade": f"{best_trade:.2f}%",
+        "Worst Trade": f"{worst_trade:.2f}%",
+        "Average Trade": f"{avg_trade:.2f}%"
+    }
+
+    # Convert the dictionary to a JSON string
+    return json.dumps(results)
