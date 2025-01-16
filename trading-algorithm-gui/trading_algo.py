@@ -89,7 +89,7 @@ def total_signal(df, current_candle):
     return 0
 
 def add_total_signal(df):
-    df['TotalSignal'] = df.progress_apply(lambda row: total_signal(df, row.name), axis=1)
+    df['TotalSignal'] = df.apply(lambda row: total_signal(df, row.name), axis=1)
     return df
 
 def add_pointpos_column(df, signal_column):
@@ -193,20 +193,19 @@ def run_trading_algorithm(stockKey):
                         return_heatmap=True)
     results.append(stats)
 
-    agg_returns = sum([r["Return [%]"] for r in results])
-    num_trades = sum([r["# Trades"] for r in results])
-    max_drawdown = min([r["Max. Drawdown [%]"] for r in results])
-    avg_drawdown = sum([r["Avg. Drawdown [%]"] for r in results]) / len(results)
+    detailed_stats = stats[0]
+    
+    
+    agg_returns = detailed_stats["Return [%]"]
+    num_trades = detailed_stats["# Trades"]
+    max_drawdown = detailed_stats["Max. Drawdown [%]"]
+    avg_drawdown = detailed_stats["Avg. Drawdown [%]"]
+    win_rate = detailed_stats["Win Rate [%]"]
+    best_trade = detailed_stats["Best Trade [%]"]
+    worst_trade = detailed_stats["Worst Trade [%]"]
+    avg_trade = detailed_stats["Avg. Trade [%]"]
 
-    win_rate = sum([r["Win Rate [%]"] for r in results]) / len(results)
-    best_trade = max([r["Best Trade [%]"] for r in results])
-    worst_trade = min([r["Worst Trade [%]"] for r in results])
-    avg_trade = sum([r["Avg. Trade [%]"] for r in results]) / len(results)
-    #max_trade_duration = max([r["Max. Trade Duration"] for r in results])
-    #avg_trade_duration = sum([r["Avg. Trade Duration"] for r in results]) / len(results)
-
-    #print(f"Maximum Trade Duration: {max_trade_duration} days")
-    #print(f"Average Trade Duration: {avg_trade_duration:.2f} days")
+    # Create a JSON-compatible results dictionary
     results_dict = {
         "Aggregated Returns": f"{agg_returns:.2f}%",
         "Number of Trades": num_trades,
@@ -215,7 +214,7 @@ def run_trading_algorithm(stockKey):
         "Win Rate": f"{win_rate:.2f}%",
         "Best Trade": f"{best_trade:.2f}%",
         "Worst Trade": f"{worst_trade:.2f}%",
-        "Average Trade": f"{avg_trade:.2f}%"
+        "Average Trade": f"{avg_trade:.2f}%",
     }
     
     # Convert the dictionary to a JSON string
