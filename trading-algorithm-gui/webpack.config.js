@@ -1,19 +1,16 @@
 module.exports = {
-    resolve: {
-      fallback: {
-        crypto: false,
-        stream: false,
-        util: false,
-        path: false,
-        buffer: false,
-        http: false,
-        https: false,
-        url: false,
-        assert: false,
-        zlib: false,
-        tls: false,
-        net: false,
-      },
+  resolve: {
+    fallback: {
+      crypto: require.resolve("crypto-browserify"),
+      stream: require.resolve("stream-browserify"),
+      util: require.resolve("util/"),
+      buffer: require.resolve("buffer/"),
+      http: require.resolve("stream-http"),
+      https: require.resolve("https-browserify"),
+      url: require.resolve("url/"),
+      assert: require.resolve("assert/"),
+      zlib: require.resolve("browserify-zlib"),
     },
-  };
+  },
+};
   

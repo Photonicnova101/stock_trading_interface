@@ -67,11 +67,11 @@ const App = () => {
 
       // Make an API call to the FastAPI backend
       const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm/", {
-        json: stockData, // Pass the stock symbol as JSON in the request body
+        stockKey: stockKeyword, // Pass the stock symbol as JSON in the request body
       });
 
       // Save the results returned by the backend
-      setAlgorithmResults(response.json());
+      setAlgorithmResults(response.data);
     } catch (err) {
       // If the request fails, display an error message
       setError(err.response?.data?.detail || "An error occurred");
@@ -81,10 +81,12 @@ const App = () => {
 
 
   // Form submission handler
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent page reload
-    fetchStockData(stockKeyword); // Fetch stock data using the keyword
-    fetchAlgorithmResults(stockKeyword)
+    await fetchStockData(stockKeyword); // Wait for stock data to be fetched
+    if (stockData) {
+      await fetchAlgorithmResults(); // Only call this if stockData is successfully fetched
+    }
   };
   
   return (
@@ -112,6 +114,7 @@ const App = () => {
           <h2>Stock Data</h2>
           <pre>{JSON.stringify(stockData, null, 2)}</pre>
           <h3>Results of trading strategy</h3>
+          
           {/* Display results */}
       {algorithmResults && (
         <div>

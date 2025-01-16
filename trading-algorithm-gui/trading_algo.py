@@ -5,14 +5,29 @@ from plotly.subplots import make_subplots
 import json
 from backtesting import Strategy
 from backtesting import Backtest
+import yfinance as yf
 
-def load_json(json_data):  
-    data = json.loads(json_data)
-    df = pd.DataFrame(data)
+def read_csv_to_dataframe(file_path):
+    df = pd.read_csv(file_path)
+    df.rename(columns={
+    'Date': 'Gmt time',
+    'Open': 'Open',
+    'High': 'High',
+    'Low': 'Low',
+    'Close': 'Close',
+    'Volume': 'Volume'
+    }, inplace=True)
+    
+    df.drop(columns=['Dividends', 'Stock Splits'], inplace=True)
+    df['Gmt time'] = pd.to_datetime(df['Gmt time'], errors='coerce', utc=True)
+    df = df.dropna(subset=['Gmt time'])  # Remove rows with invalid datetimes
+    df['Gmt time'] = df['Gmt time'].dt.strftime('%d.%m.%Y %H:%M:%S.000')
+    
     df["Gmt time"] = df["Gmt time"].str.replace(".000", "")
     df['Gmt time'] = pd.to_datetime(df['Gmt time'], format='%d.%m.%Y %H:%M:%S')
     df = df[df.High != df.Low]
     df.set_index("Gmt time", inplace=True)
+
     return df
 
 def total_signal(df, current_candle):
@@ -80,7 +95,7 @@ class MyStrat(Strategy):
 
     def init(self):
         super().init()
-        self.signal1 = self.I(SIGNAL)  # Assuming SIGNAL is a function that returns signals
+        self.signal1 = self.I(lambda: SIGNAL(self.data.df))  # Assuming SIGNAL is a function that returns signals
 
     def next(self):
         super().next()
@@ -99,8 +114,43 @@ class MyStrat(Strategy):
             tp = current_close - self.tpperc * current_close  # TP at 2% above the close price
             self.sell(size=self.mysize, sl=sl, tp=tp)
 
-def run_trading_algorithm(json):
-    df = load_json(json)
+def fetch_stock_data(ticker, interval='1d', start_date=None, end_date=None):
+    """
+    Fetch stock data for a specific ticker from Yahoo Finance.
+
+    Args:
+        ticker (str): Stock ticker symbol (e.g., "AAPL").
+        interval (str): Data interval ('1m', '5m', '1h', etc.).
+        start_date (str): Start date for fetching data (YYYY-MM-DD).
+        end_date (str): End date for fetching data (YYYY-MM-DD).
+
+    Returns:
+        pd.DataFrame: DataFrame containing the stock data in OHLCV format.
+    """
+    stock = yf.Ticker(ticker)
+    data = stock.history(interval=interval, start=start_date, end=end_date)
+    data.reset_index(inplace=True)
+    data.rename(columns={
+        "Datetime": "Gmt time", 
+        "Open": "Open", 
+        "High": "High", 
+        "Low": "Low", 
+        "Close": "Close", 
+        "Volume": "Volume"
+    }, inplace=True)
+
+    return data
+    
+
+def run_trading_algorithm(stockKey):
+    stock_data = fetch_stock_data(
+        ticker=stockKey, 
+        interval="1d", 
+        start_date="2000-01-01", 
+        end_date="2024-07-01"
+    )
+    stock_data.to_csv("stock_data.csv", index=False)
+    df = read_csv_to_dataframe("stock_data.csv")
     df = add_total_signal(df)
     df = add_pointpos_column(df, "TotalSignal")
 
@@ -138,6 +188,6 @@ def run_trading_algorithm(json):
         "Worst Trade": f"{worst_trade:.2f}%",
         "Average Trade": f"{avg_trade:.2f}%"
     }
-
+    
     # Convert the dictionary to a JSON string
     return json.dumps(results)

@@ -9,7 +9,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://bug-free-palm-tree-vr7pqxxw5qwhw5rw-3000.app.github.dev/"],  # Change this to specific domains if necessary
+    allow_origins=["*"],  # Change this to specific domains if necessary
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
