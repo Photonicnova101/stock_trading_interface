@@ -74,6 +74,7 @@ const App = () => {
       setAlgorithmResults(response.data);
     } catch (err) {
       // If the request fails, display an error message
+      console.error("Error fetching algorithm results:", err);
       setError(err.response?.data?.detail || "An error occurred");
     }
   };
@@ -84,7 +85,7 @@ const App = () => {
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent page reload
     await fetchStockData(stockKeyword); // Wait for stock data to be fetched
-    if (stockData) {
+    if (stockKeyword) {
       await fetchAlgorithmResults(); // Only call this if stockData is successfully fetched
     }
   };
@@ -113,9 +114,9 @@ const App = () => {
         <div>
           <h2>Stock Data</h2>
           <pre>{JSON.stringify(stockData, null, 2)}</pre>
-          <h3>Results of trading strategy</h3>
-          
-          {/* Display results */}
+        </div>
+      )}
+
       {algorithmResults && (
         <div>
           <h2>Results:</h2>
@@ -125,8 +126,7 @@ const App = () => {
 
       {/* Display error message */}
       {error && <div style={{ color: "red" }}>Error: {error}</div>}
-        </div>
-      )}
+      
     </div>
   );
 };

@@ -7,6 +7,35 @@ from backtesting import Strategy
 from backtesting import Backtest
 import yfinance as yf
 
+
+
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel# Import your trading algorithm
+from fastapi.middleware.cors import CORSMiddleware
+
+# Define FastAPI app
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Change this to specific domains if necessary
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+class StockInput(BaseModel):
+    stockKey: str
+
+@app.post("/run_trading_algorithm/")
+async def run_trading_algorithm_endpoint(stock: StockInput):
+    try:
+        # Call the run_trading_algorithm function from your trading_algo module
+        # The stock_data is passed as a JSON string fetched from the React app
+        result = run_trading_algorithm(stock.stockKey)
+        return {"result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 def read_csv_to_dataframe(file_path):
     df = pd.read_csv(file_path)
     df.rename(columns={
@@ -178,7 +207,7 @@ def run_trading_algorithm(stockKey):
 
     #print(f"Maximum Trade Duration: {max_trade_duration} days")
     #print(f"Average Trade Duration: {avg_trade_duration:.2f} days")
-    results = {
+    results_dict = {
         "Aggregated Returns": f"{agg_returns:.2f}%",
         "Number of Trades": num_trades,
         "Maximum Drawdown": f"{max_drawdown:.2f}%",
@@ -190,4 +219,4 @@ def run_trading_algorithm(stockKey):
     }
     
     # Convert the dictionary to a JSON string
-    return json.dumps(results)
+    return json.dumps(results_dict)
