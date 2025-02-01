@@ -7,7 +7,7 @@ const App = () => {
   const [error, setError] = useState("");              // Error messages
   const [isLoading, setIsLoading] = useState(false);   // Loading state
   const [algorithmResults, setAlgorithmResults] = useState(null);
-  
+  const [candleStickResults, setCandleStickResults] = useState(null);
   
   // Function to handle input change
   const handleInputChange = (e) => {
@@ -71,14 +71,15 @@ const App = () => {
       });
 
       // Save the results returned by the backend
-      setAlgorithmResults(response.data);
+      setAlgorithmResults(response.data.result);
+      setCandleStickResults(response.data.candlestick_image);
     } catch (err) {
       // If the request fails, display an error message
       console.error("Error fetching algorithm results:", err);
       setError(err.response?.data?.detail || "An error occurred");
     }
   };
-
+  
 
 
   // Form submission handler
@@ -98,7 +99,7 @@ const App = () => {
           type="text"
           placeholder="Enter stock keyword (e.g., AAPL)"
           value={stockKeyword}
-          onChange={handleInputChange}
+          onChange={handleInputChange }
         />
         <button type="submit">Search</button>
       </form>
@@ -127,6 +128,15 @@ const App = () => {
       {/* Display error message */}
       {error && <div style={{ color: "red" }}>Error: {error}</div>}
       
+      {candleStickResults && (
+        <div>
+          <h2>Candle Stick Plot:</h2>
+          <img src={`data:image/png;base64,${candleStickResults}`} alt="Candlestick Plot" />
+        </div>
+      )}
+
+      {/* Display error message */}
+      {error && <div style={{ color: "red" }}>Error: {error}</div>}
     </div>
   );
 };

@@ -6,7 +6,9 @@ import json
 from backtesting import Strategy
 from backtesting import Backtest
 import yfinance as yf
-
+import io
+import base64
+import kaleido
 
 
 from fastapi import FastAPI, HTTPException
@@ -32,7 +34,8 @@ async def run_trading_algorithm_endpoint(stock: StockInput):
         # Call the run_trading_algorithm function from your trading_algo module
         # The stock_data is passed as a JSON string fetched from the React app
         result = run_trading_algorithm(stock.stockKey)
-        return {"result": result}
+        candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 100)
+        return {"result": result, "candlestick_plot": candlestick_image}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -219,3 +222,49 @@ def run_trading_algorithm(stockKey):
     
     # Convert the dictionary to a JSON string
     return json.dumps(results_dict)
+
+def plot_candlestick_with_signals(stockKey, start_index, num_rows):
+    """
+    Plots a candlestick chart with signal points.
+    
+    Parameters:
+    df (DataFrame): DataFrame containing the stock data with 'Open', 'High', 'Low', 'Close', and 'pointpos' columns.
+    start_index (int): The starting index for the subset of data to plot.
+    num_rows (int): The number of rows of data to plot.
+    
+    Returns:
+    None
+    """
+    stock_data = fetch_stock_data(
+        ticker=stockKey, 
+        interval="1d", 
+        start_date="2000-01-01", 
+        end_date="2024-07-01"
+    )
+    stock_data.to_csv("stock_data.csv", index=False)
+    df = read_csv_to_dataframe("stock_data.csv")
+    df = add_total_signal(df)
+    df = add_pointpos_column(df, "TotalSignal")
+
+    df_subset = df[start_index:start_index + num_rows]
+    
+    fig = make_subplots(rows=1, cols=1)
+    
+    fig.add_trace(go.Candlestick(x=df_subset.index,
+                                 open=df_subset['Open'],
+                                 high=df_subset['High'],
+                                 low=df_subset['Low'],
+                                 close=df_subset['Close'],
+                                 name='Candlesticks'),
+                  row=1, col=1)
+    
+    fig.add_trace(go.Scatter(x=df_subset.index, y=df_subset['pointpos'], mode="markers",
+                            marker=dict(size=10, color="MediumPurple", symbol='circle'),
+                            name="Entry Points"),
+                  row=1, col=1)
+    
+    buf = io.BytesIO()
+    fig.write_image(buf, format='png', engine='kaleido')
+    buf.seek(0)
+    image_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    return image_base64
