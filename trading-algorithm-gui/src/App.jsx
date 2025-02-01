@@ -29,7 +29,7 @@ const App = () => {
       method: 'GET',
       url: `https://yahoo-finance15.p.rapidapi.com/api/v1/markets/quote`,
       params: { 
-        ticker: 'AAPL',
+        ticker: stockKeyword,
         type: 'STOCKS' 
       },
       headers: {
