@@ -34,7 +34,7 @@ async def run_trading_algorithm_endpoint(stock: StockInput):
         # Call the run_trading_algorithm function from your trading_algo module
         # The stock_data is passed as a JSON string fetched from the React app
         result = run_trading_algorithm(stock.stockKey)
-        candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 100)
+        candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 500)
         return {"result": result, "candlestick_plot": candlestick_image}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

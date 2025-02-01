@@ -72,7 +72,7 @@ const App = () => {
 
       // Save the results returned by the backend
       setAlgorithmResults(response.data.result);
-      setCandleStickResults(response.data.candlestick_image);
+      setCandleStickResults(response.data.candlestick_plot);
     } catch (err) {
       // If the request fails, display an error message
       console.error("Error fetching algorithm results:", err);
