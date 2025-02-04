@@ -13,7 +13,16 @@ const App = () => {
   const handleInputChange = (e) => {
     setStockKeyword(e.target.value.trim().toUpperCase()); // Convert to uppercase for standardization
   };
-
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Prevent page reload
+    await fetchStockData(stockKeyword); // Wait for stock data to be fetched
+    if (stockKeyword) {
+      fetchAlgorithmResults(); // Only call this if stockData is successfully fetched
+    }
+    if (stockKeyword){
+      fetchCandlestickPlot(stockKeyword)
+    }
+  };
   // Function to fetch stock data
   const fetchStockData = async (keyword) => {
     if (!keyword) {
@@ -72,8 +81,7 @@ const App = () => {
       });
       console.log("Response data: ",response.data);
       // Save the results returned by the backend
-      setAlgorithmResults(response.data.result);
-      setCandleStickResults(response.data.candlestick_plot);
+      setAlgorithmResults(response.data);
     } catch (err) {
       // If the request fails, display an error message
       console.error("Error fetching algorithm results:", err);
@@ -82,15 +90,17 @@ const App = () => {
       setIsLoading(false); // Stop loading
     }
   };
-  
 
-
-  // Form submission handler
-  const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent page reload
-    await fetchStockData(stockKeyword); // Wait for stock data to be fetched
-    if (stockKeyword) {
-      await fetchAlgorithmResults(); // Only call this if stockData is successfully fetched
+  const fetchCandlestickPlot = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const response = await axios.post("http://127.0.0.1:8000/run_candlestick_plot/", { stockKey: stockKeyword });
+      setCandleStickResults(response.data);
+    } catch (err) {
+      setError("Error fetching candlestick plot");
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -134,7 +144,7 @@ const App = () => {
       {candleStickResults && (
         <div>
           <h2>Candle Stick Plot:</h2>
-          <img src={`data:image/png;base64,${candleStickResults}`} alt="Candlestick Plot" />
+          <img src={`data:image/png;base64,${candleStickResults}`}/>
         </div>
       )}
 

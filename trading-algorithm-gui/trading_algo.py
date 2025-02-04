@@ -8,7 +8,7 @@ from backtesting import Backtest
 import yfinance as yf
 import io
 import base64
-import kaleido
+import matplotlib.pyplot as plt
 
 
 from fastapi import FastAPI, HTTPException
@@ -34,11 +34,18 @@ async def run_trading_algorithm_endpoint(stock: StockInput):
         # Call the run_trading_algorithm function from your trading_algo module
         # The stock_data is passed as a JSON string fetched from the React app
         result = run_trading_algorithm(stock.stockKey)
-        candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 500)
-        return {"result": result, "candlestick_plot": candlestick_image}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
+    
+@app.post("/run_candlestick_plot/")
+async def run_candlestick_plot_endpoint(stock: StockInput):
+    try:
+        candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 500)
+        return candlestick_image
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 def read_csv_to_dataframe(file_path):
     df = pd.read_csv(file_path)
     df.rename(columns={
@@ -250,21 +257,18 @@ def plot_candlestick_with_signals(stockKey, start_index, num_rows):
     
     fig = make_subplots(rows=1, cols=1)
     
-    fig.add_trace(go.Candlestick(x=df_subset.index,
-                                 open=df_subset['Open'],
-                                 high=df_subset['High'],
-                                 low=df_subset['Low'],
-                                 close=df_subset['Close'],
-                                 name='Candlesticks'),
-                  row=1, col=1)
-    
-    fig.add_trace(go.Scatter(x=df_subset.index, y=df_subset['pointpos'], mode="markers",
-                            marker=dict(size=10, color="MediumPurple", symbol='circle'),
-                            name="Entry Points"),
-                  row=1, col=1)
-    
+    # Plot using matplotlib
+    fig, ax = plt.subplots()
+    ax.plot(df_subset.index, df_subset['Close'], label='Close Price')
+    ax.scatter(df_subset.index, df_subset['pointpos'], color='purple', label='Entry Points')
+    ax.set_title('Candlestick Plot with Signals')
+    ax.legend()
+
+    # Save the plot to a BytesIO object
     buf = io.BytesIO()
-    fig.write_image(buf, format='png', engine='kaleido')
+    plt.savefig(buf, format='png')
     buf.seek(0)
+    plt.close(fig)
+    
     image_base64 = base64.b64encode(buf.read()).decode('utf-8')
     return image_base64
