@@ -64,12 +64,13 @@ const App = () => {
     try {
       // Clear previous error messages
       setError("");
+      setIsLoading(true); // Start loading
 
       // Make an API call to the FastAPI backend
       const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm/", {
         stockKey: stockKeyword, // Pass the stock symbol as JSON in the request body
       });
-
+      console.log("Response data: ",response.data);
       // Save the results returned by the backend
       setAlgorithmResults(response.data.result);
       setCandleStickResults(response.data.candlestick_plot);
@@ -77,6 +78,8 @@ const App = () => {
       // If the request fails, display an error message
       console.error("Error fetching algorithm results:", err);
       setError(err.response?.data?.detail || "An error occurred");
+    } finally{
+      setIsLoading(false); // Stop loading
     }
   };
   
