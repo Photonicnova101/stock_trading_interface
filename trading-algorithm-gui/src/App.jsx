@@ -76,7 +76,7 @@ const App = () => {
       setIsLoading(true); // Start loading
 
       // Make an API call to the FastAPI backend
-      const response = await axios.post("http://127.0.0.1:8000/run_trading_algorithm/", {
+      const response = await axios.post("https://stock-backtesting-app-9dcf20e1e0c5.herokuapp.com/run_trading_algorithm/", {
         stockKey: stockKeyword, // Pass the stock symbol as JSON in the request body
       });
       console.log("Response data: ",response.data);
@@ -95,7 +95,7 @@ const App = () => {
     setIsLoading(true);
     setError("");
     try {
-      const response = await axios.post("http://127.0.0.1:8000/run_candlestick_plot/", { stockKey: stockKeyword });
+      const response = await axios.post("https://stock-backtesting-app-9dcf20e1e0c5.herokuapp.com/run_candlestick_plot/", { stockKey: stockKeyword });
       setCandleStickResults(response.data);
     } catch (err) {
       setError("Error fetching candlestick plot");
@@ -144,7 +144,7 @@ const App = () => {
       {candleStickResults && (
         <div>
           <h2>Candle Stick Plot:</h2>
-          <img src={`data:image/png;base64,${candleStickResults}`}/>
+          <img src={`data:image/png;base64,${candleStickResults}`} alt="Candle stick plot"/>
         </div>
       )}
 
