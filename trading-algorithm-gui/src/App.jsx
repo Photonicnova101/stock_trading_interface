@@ -3,6 +3,7 @@ import axios from "axios";
 
 const App = () => {
   const [stockKeyword, setStockKeyword] = useState(""); // User input for stock keyword
+  const [strategy, setStrategy] = useState("default"); // NEW: strategy state
   const [stockData, setStockData] = useState(null);    // To store fetched stock data
   const [error, setError] = useState("");              // Error messages
   const [isLoading, setIsLoading] = useState(false);   // Loading state
@@ -13,14 +14,17 @@ const App = () => {
   const handleInputChange = (e) => {
     setStockKeyword(e.target.value.trim().toUpperCase()); // Convert to uppercase for standardization
   };
+  // NEW: handle strategy selection
+  const handleStrategyChange = (e) => {
+    setStrategy(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault(); // Prevent page reload
     await fetchStockData(stockKeyword); // Wait for stock data to be fetched
     if (stockKeyword) {
       fetchAlgorithmResults(); // Only call this if stockData is successfully fetched
-    }
-    if (stockKeyword){
-      fetchCandlestickPlot(stockKeyword)
+      fetchCandlestickPlot(stockKeyword);
     }
   };
   // Function to fetch stock data
@@ -68,7 +72,7 @@ const App = () => {
     }
   };
 
-  //Getting algo results
+  // Getting algo results
   const fetchAlgorithmResults = async () => {
     try {
       // Clear previous error messages
@@ -78,6 +82,7 @@ const App = () => {
       // Make an API call to the FastAPI backend
       const response = await axios.post("https://stock-backtesting-app-9dcf20e1e0c5.herokuapp.com/run_trading_algorithm/", {
         stockKey: stockKeyword, // Pass the stock symbol as JSON in the request body
+        strategy: strategy, // send selected strategy
       });
       console.log("Response data: ",response.data);
       // Save the results returned by the backend
@@ -95,10 +100,14 @@ const App = () => {
     setIsLoading(true);
     setError("");
     try {
-      const response = await axios.post("https://stock-backtesting-app-9dcf20e1e0c5.herokuapp.com/run_candlestick_plot/", { stockKey: stockKeyword });
-      setCandleStickResults(response.data);
+      const response = await axios.post(
+        "https://stock-backtesting-app-9dcf20e1e0c5.herokuapp.com/run_candlestick_plot/",
+        { stockKey: stockKeyword, strategy: strategy } // <-- include strategy
+      );
+      setCandleStickResults(response.data.candlestick_plot);
     } catch (err) {
       setError("Error fetching candlestick plot");
+      console.error("Error fetching candlestick plot:", err);
     } finally {
       setIsLoading(false);
     }
@@ -114,6 +123,13 @@ const App = () => {
           value={stockKeyword}
           onChange={handleInputChange }
         />
+        {/* NEW: Strategy selector */}
+        <select value={strategy} onChange={handleStrategyChange}>
+          <option value="default">Default</option>
+          <option value="rising_wedge">Rising Wedge</option>
+          <option value="falling_wedge">Falling Wedge</option>
+          <option value="cup_handle">Cup and Handle</option>
+        </select>
         <button type="submit">Search</button>
       </form>
 

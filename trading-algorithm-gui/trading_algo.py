@@ -10,10 +10,62 @@ import io
 import base64
 import matplotlib.pyplot as plt
 
-
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel# Import your trading algorithm
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+
+# --- Pattern Detection Placeholders ---
+def detect_rising_wedge(df):
+    df['RisingWedgeSignal'] = 0
+    if len(df) > 10:
+        df.loc[df.index[::20], 'RisingWedgeSignal'] = 2  # Buy
+        df.loc[df.index[10::20], 'RisingWedgeSignal'] = 1  # Sell
+    return df
+
+def detect_falling_wedge(df):
+    df['FallingWedgeSignal'] = 0
+    if len(df) > 10:
+        df.loc[df.index[::25], 'FallingWedgeSignal'] = 2
+        df.loc[df.index[12::25], 'FallingWedgeSignal'] = 1
+    return df
+
+def detect_cup_and_handle(df):
+    df['CupHandleSignal'] = 0
+    if len(df) > 10:
+        df.loc[df.index[::30], 'CupHandleSignal'] = 2
+        df.loc[df.index[15::30], 'CupHandleSignal'] = 1
+    return df
+
+# --- Pattern Strategy Classes ---
+class RisingWedgeStrat(Strategy):
+    def init(self):
+        self.signal = self.data.df['RisingWedgeSignal']
+
+    def next(self):
+        if self.signal[-1] == 2 and not self.position:
+            self.buy()
+        elif self.signal[-1] == 1 and self.position:
+            self.position.close()
+
+class FallingWedgeStrat(Strategy):
+    def init(self):
+        self.signal = self.data.df['FallingWedgeSignal']
+
+    def next(self):
+        if self.signal[-1] == 2 and not self.position:
+            self.buy()
+        elif self.signal[-1] == 1 and self.position:
+            self.position.close()
+
+class CupHandleStrat(Strategy):
+    def init(self):
+        self.signal = self.data.df['CupHandleSignal']
+
+    def next(self):
+        if self.signal[-1] == 2 and not self.position:
+            self.buy()
+        elif self.signal[-1] == 1 and self.position:
+            self.position.close()
 
 # Define FastAPI app
 app = FastAPI()
@@ -25,53 +77,50 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- API Models ---
 class StockInput(BaseModel):
     stockKey: str
+    strategy: str = "default"
 
 @app.post("/run_trading_algorithm/")
 async def run_trading_algorithm_endpoint(stock: StockInput):
     try:
-        # Call the run_trading_algorithm function from your trading_algo module
-        # The stock_data is passed as a JSON string fetched from the React app
-        result = run_trading_algorithm(stock.stockKey)
+        result = run_trading_algorithm(stock.stockKey, stock.strategy)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @app.post("/run_candlestick_plot/")
 async def run_candlestick_plot_endpoint(stock: StockInput):
     try:
         candlestick_image = plot_candlestick_with_signals(stock.stockKey, 0, 500)
-        return candlestick_image
+        return {"candlestick_plot": candlestick_image}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 def read_csv_to_dataframe(file_path):
     df = pd.read_csv(file_path)
     df.rename(columns={
-    'Date': 'Gmt time',
-    'Open': 'Open',
-    'High': 'High',
-    'Low': 'Low',
-    'Close': 'Close',
-    'Volume': 'Volume'
+        'Date': 'Gmt time',
+        'Open': 'Open',
+        'High': 'High',
+        'Low': 'Low',
+        'Close': 'Close',
+        'Volume': 'Volume'
     }, inplace=True)
-    
-    df.drop(columns=['Dividends', 'Stock Splits'], inplace=True)
+    df.drop(columns=['Dividends', 'Stock Splits'], inplace=True, errors='ignore')
     df['Gmt time'] = pd.to_datetime(df['Gmt time'], errors='coerce', utc=True)
     df = df.dropna(subset=['Gmt time'])  # Remove rows with invalid datetimes
     df['Gmt time'] = df['Gmt time'].dt.strftime('%d.%m.%Y %H:%M:%S.000')
-    
     df["Gmt time"] = df["Gmt time"].str.replace(".000", "")
     df['Gmt time'] = pd.to_datetime(df['Gmt time'], format='%d.%m.%Y %H:%M:%S')
     df = df[df.High != df.Low]
     df.set_index("Gmt time", inplace=True)
-
     return df
 
 def total_signal(df, current_candle):
     current_pos = df.index.get_loc(current_candle)
-    
     # Buy condition
     c1 = df['High'].iloc[current_pos] > df['High'].iloc[current_pos-1]
     c2 = df['High'].iloc[current_pos-1] > df['Low'].iloc[current_pos]
@@ -80,10 +129,8 @@ def total_signal(df, current_candle):
     c5 = df['Low'].iloc[current_pos-1] > df['High'].iloc[current_pos-3]
     c6 = df['High'].iloc[current_pos-3] > df['Low'].iloc[current_pos-2]
     c7 = df['Low'].iloc[current_pos-2] > df['Low'].iloc[current_pos-3]
-
     if c1 and c2 and c3 and c4 and c5 and c6 and c7:
         return 2
-
     # Symmetrical conditions for short (sell condition)
     c1 = df['Low'].iloc[current_pos] < df['Low'].iloc[current_pos-1]
     c2 = df['Low'].iloc[current_pos-1] < df['High'].iloc[current_pos]
@@ -92,10 +139,8 @@ def total_signal(df, current_candle):
     c5 = df['High'].iloc[current_pos-1] < df['Low'].iloc[current_pos-3]
     c6 = df['Low'].iloc[current_pos-3] < df['High'].iloc[current_pos-2]
     c7 = df['High'].iloc[current_pos-2] < df['High'].iloc[current_pos-3]
-
     if c1 and c2 and c3 and c4 and c5 and c6 and c7:
         return 1
-
     return 0
 
 def add_total_signal(df):
@@ -103,16 +148,6 @@ def add_total_signal(df):
     return df
 
 def add_pointpos_column(df, signal_column):
-    """
-    Adds a 'pointpos' column to the DataFrame to indicate the position of support and resistance points.
-    
-    Parameters:
-    df (DataFrame): DataFrame containing the stock data with the specified SR column, 'Low', and 'High' columns.
-    sr_column (str): The name of the column to consider for the SR (support/resistance) points.
-    
-    Returns:
-    DataFrame: The original DataFrame with an additional 'pointpos' column.
-    """
     def pointpos(row):
         if row[signal_column] == 2:
             return row['Low'] - 1e-4
@@ -120,7 +155,6 @@ def add_pointpos_column(df, signal_column):
             return row['High'] + 1e-4
         else:
             return np.nan
-
     df['pointpos'] = df.apply(lambda row: pointpos(row), axis=1)
     return df
 
@@ -134,38 +168,22 @@ class MyStrat(Strategy):
 
     def init(self):
         super().init()
-        self.signal1 = self.I(lambda: SIGNAL(self.data.df))  # Assuming SIGNAL is a function that returns signals
+        self.signal1 = self.I(lambda: SIGNAL(self.data.df))
 
     def next(self):
         super().next()
-         
         if self.signal1 == 2 and not self.position:
-            # Open a new long position with calculated SL and TP
             current_close = self.data.Close[-1]
-            sl = current_close - self.slperc * current_close  # SL at 4% below the close price
-            tp = current_close + self.tpperc * current_close  # TP at 2% above the close price
+            sl = current_close - self.slperc * current_close
+            tp = current_close + self.tpperc * current_close
             self.buy(size=self.mysize, sl=sl, tp=tp)
-
         elif self.signal1 == 1 and not self.position:
-            # Open a new short position, setting SL based on a strategy-specific requirement
             current_close = self.data.Close[-1]
-            sl = current_close + self.slperc * current_close  # SL at 4% below the close price
-            tp = current_close - self.tpperc * current_close  # TP at 2% above the close price
+            sl = current_close + self.slperc * current_close
+            tp = current_close - self.tpperc * current_close
             self.sell(size=self.mysize, sl=sl, tp=tp)
 
 def fetch_stock_data(ticker, interval='1d', start_date=None, end_date=None):
-    """
-    Fetch stock data for a specific ticker from Yahoo Finance.
-
-    Args:
-        ticker (str): Stock ticker symbol (e.g., "AAPL").
-        interval (str): Data interval ('1m', '5m', '1h', etc.).
-        start_date (str): Start date for fetching data (YYYY-MM-DD).
-        end_date (str): End date for fetching data (YYYY-MM-DD).
-
-    Returns:
-        pd.DataFrame: DataFrame containing the stock data in OHLCV format.
-    """
     stock = yf.Ticker(ticker)
     data = stock.history(interval=interval, start=start_date, end=end_date)
     data.reset_index(inplace=True)
@@ -177,11 +195,9 @@ def fetch_stock_data(ticker, interval='1d', start_date=None, end_date=None):
         "Close": "Close", 
         "Volume": "Volume"
     }, inplace=True)
-
     return data
-    
 
-def run_trading_algorithm(stockKey):
+def run_trading_algorithm(stockKey, strategy="default"):
     stock_data = fetch_stock_data(
         ticker=stockKey, 
         interval="1d", 
@@ -190,22 +206,33 @@ def run_trading_algorithm(stockKey):
     )
     stock_data.to_csv("stock_data.csv", index=False)
     df = read_csv_to_dataframe("stock_data.csv")
-    df = add_total_signal(df)
-    df = add_pointpos_column(df, "TotalSignal")
+
+    if strategy == "rising_wedge":
+        df = detect_rising_wedge(df)
+        df = add_pointpos_column(df, "RisingWedgeSignal")
+        strat_class = RisingWedgeStrat
+    elif strategy == "falling_wedge":
+        df = detect_falling_wedge(df)
+        df = add_pointpos_column(df, "FallingWedgeSignal")
+        strat_class = FallingWedgeStrat
+    elif strategy == "cup_handle":
+        df = detect_cup_and_handle(df)
+        df = add_pointpos_column(df, "CupHandleSignal")
+        strat_class = CupHandleStrat
+    else:
+        df = add_total_signal(df)
+        df = add_pointpos_column(df, "TotalSignal")
+        strat_class = MyStrat
 
     results = []
-
-    bt = Backtest(df, MyStrat, cash=5000, margin=1/5, commission=0.0002)
+    bt = Backtest(df, strat_class, cash=5000, margin=1/5, commission=0.0002)
     stats = bt.optimize(slperc=[i/100 for i in range(1, 8)],
                                 tpperc=[i/100 for i in range(1, 8)],
                     maximize='Return [%]', max_tries=3000,
                         random_state=0,
                         return_heatmap=True)
     results.append(stats)
-
     detailed_stats = stats[0]
-    
-    
     agg_returns = detailed_stats["Return [%]"]
     num_trades = detailed_stats["# Trades"]
     max_drawdown = detailed_stats["Max. Drawdown [%]"]
@@ -215,7 +242,6 @@ def run_trading_algorithm(stockKey):
     worst_trade = detailed_stats["Worst Trade [%]"]
     avg_trade = detailed_stats["Avg. Trade [%]"]
 
-    # Create a JSON-compatible results dictionary
     results_dict = {
         "Aggregated Returns": f"{agg_returns:.2f}%",
         "Number of Trades": num_trades,
@@ -226,22 +252,9 @@ def run_trading_algorithm(stockKey):
         "Worst Trade": f"{worst_trade:.2f}%",
         "Average Trade": f"{avg_trade:.2f}%",
     }
-    
-    # Convert the dictionary to a JSON string
     return json.dumps(results_dict)
 
 def plot_candlestick_with_signals(stockKey, start_index, num_rows):
-    """
-    Plots a candlestick chart with signal points.
-    
-    Parameters:
-    df (DataFrame): DataFrame containing the stock data with 'Open', 'High', 'Low', 'Close', and 'pointpos' columns.
-    start_index (int): The starting index for the subset of data to plot.
-    num_rows (int): The number of rows of data to plot.
-    
-    Returns:
-    None
-    """
     stock_data = fetch_stock_data(
         ticker=stockKey, 
         interval="1d", 
@@ -252,23 +265,15 @@ def plot_candlestick_with_signals(stockKey, start_index, num_rows):
     df = read_csv_to_dataframe("stock_data.csv")
     df = add_total_signal(df)
     df = add_pointpos_column(df, "TotalSignal")
-
     df_subset = df[start_index:start_index + num_rows]
-    
-    fig = make_subplots(rows=1, cols=1)
-    
-    # Plot using matplotlib
     fig, ax = plt.subplots()
     ax.plot(df_subset.index, df_subset['Close'], label='Close Price')
     ax.scatter(df_subset.index, df_subset['pointpos'], color='purple', label='Entry Points')
     ax.set_title('Candlestick Plot with Signals')
     ax.legend()
-
-    # Save the plot to a BytesIO object
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
     plt.close(fig)
-    
     image_base64 = base64.b64encode(buf.read()).decode('utf-8')
     return image_base64
